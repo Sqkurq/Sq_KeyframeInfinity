@@ -1,5 +1,9 @@
-tools/
-dist/
-cert.p12
-.certpass
-*.zxp
+node_modules/
+.tools/
+.signing/
+*.p12
+*.pfx
+dist/*.zxp
+dist/*.zxp.sha256
+dist/*.zip
+.[0-9]*

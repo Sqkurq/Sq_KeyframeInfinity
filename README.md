@@ -10,7 +10,7 @@ After Effects で作業するほど勝手に進む、放置型インクリメン
 ## インストール
 
 ### ZXP(おすすめ)
-1. [Releases](../../releases) から `Sq_KeyframeInfinity-x.y.z.zxp` をダウンロード
+1. [Releases](../../releases) から `Sq_KeyframeInfinity-x.y.z-win.zxp` をダウンロード
 2. ZXP インストーラー(aescripts の ZXP Installer など)で読み込む
 3. AE を再起動し、**Window > Extensions > KEYFRAME Infinity** を開く
 
@@ -52,18 +52,19 @@ extension/            CEP エクステンション本体(これを ZXP にする
   js/panel.js         表示とタイマー
   jsx/host.jsx        AE 側の作業検知
 script/               ScriptUI 版(1ファイル)
-build.ps1             ZXP のビルド
+scripts/build-zxp.ps1 ZXP のビルド
 ```
 
 ## ビルド
-Adobe の `ZXPSignCmd.exe` を `tools/` に置くか、環境変数 `ZXPSIGNCMD` でパスを指定して実行します。
-自己署名証明書は初回に自動で作られます(`cert.p12` と `.certpass` はリポジトリに含めません)。
+Sq Baton / Sq_PseudoEffectMaker と同じ方式です。
 
 ```powershell
-./build.ps1
+npm run build:zxp
 ```
 
-`dist/Sq_KeyframeInfinity-<version>.zxp` ができます。
+- 署名ツール(Adobe ZXPSignCmd 4.1.3)は `.tools/` に置かれ、ハッシュを照合してから使います。無ければ Adobe 公式リポジトリから取得します。
+- 開発用の自己署名証明書は初回に `.signing/` へ作られます。パスワードは DPAPI で暗号化して保存します。どちらもコミットしません。
+- `dist/Sq_KeyframeInfinity-<version>-win.zxp` と `.sha256` ができます。
 
 ## 開発メモ
 - `extension/index.html?demo` をブラウザで開くと、AE なしで見た目と進行を確認できます。

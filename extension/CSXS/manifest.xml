@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest Version="7.0" ExtensionBundleId="com.sqkurq.keyframeinfinity" ExtensionBundleVersion="1.0.0"
+<ExtensionManifest Version="7.0" ExtensionBundleId="io.sq.keyframeinfinity" ExtensionBundleVersion="1.0.0"
   ExtensionBundleName="KEYFRAME Infinity" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
-    <Extension Id="com.sqkurq.keyframeinfinity.panel" Version="1.0.0"/>
+    <Extension Id="io.sq.keyframeinfinity.panel" Version="1.0.0"/>
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>
@@ -16,7 +16,7 @@
     </RequiredRuntimeList>
   </ExecutionEnvironment>
   <DispatchInfoList>
-    <Extension Id="com.sqkurq.keyframeinfinity.panel">
+    <Extension Id="io.sq.keyframeinfinity.panel">
       <DispatchInfo>
         <Resources>
           <MainPath>./index.html</MainPath>
