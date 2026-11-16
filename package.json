@@ -1,6 +1,6 @@
 {
   "name": "sq-keyframe-infinity",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "After Effects CEP panel: an idle incremental game that advances as you work",
   "scripts": {

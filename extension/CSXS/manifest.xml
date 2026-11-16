@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest Version="7.0" ExtensionBundleId="io.sq.keyframeinfinity" ExtensionBundleVersion="1.0.0"
+<ExtensionManifest Version="7.0" ExtensionBundleId="io.sq.keyframeinfinity" ExtensionBundleVersion="1.1.0"
   ExtensionBundleName="KEYFRAME Infinity" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
-    <Extension Id="io.sq.keyframeinfinity.panel" Version="1.0.0"/>
+    <Extension Id="io.sq.keyframeinfinity.panel" Version="1.1.0"/>
+    <Extension Id="io.sq.keyframeinfinity.info" Version="1.1.0"/>
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>
@@ -36,6 +37,29 @@
             <MinSize>
               <Height>40</Height>
               <Width>160</Width>
+            </MinSize>
+          </Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+    <Extension Id="io.sq.keyframeinfinity.info">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./info.html</MainPath>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+        </Lifecycle>
+        <UI>
+          <Type>Modeless</Type>
+          <Geometry>
+            <Size>
+              <Height>330</Height>
+              <Width>320</Width>
+            </Size>
+            <MinSize>
+              <Height>160</Height>
+              <Width>220</Width>
             </MinSize>
           </Geometry>
         </UI>

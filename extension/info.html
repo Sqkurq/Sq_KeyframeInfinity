@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>KEYFRAME Infinity — 詳細</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:#232323;color:#cfcfcf;font:11px/1.5 'Segoe UI','Yu Gothic UI','Hiragino Sans',sans-serif;display:flex;flex-direction:column;cursor:default}
+  #st{flex:1;overflow:auto;padding:8px 10px;white-space:pre-wrap;color:#bdbdbd;font:inherit;user-select:text}
+  #ft{border-top:1px solid #111;padding:7px 10px 8px}
+  label{display:flex;align-items:center;gap:5px;margin-bottom:7px}
+  button{font:inherit;color:#eee;background:#3a3a3a;border:1px solid #4a4a4a;border-radius:3px;padding:3px 10px;margin-right:4px;cursor:pointer}
+  button:hover{background:#474747}
+  button:disabled{opacity:.35;cursor:default}
+  #rs.arm{background:#6a2a2a;border-color:#8a3a3a}
+</style>
+</head>
+<body>
+<pre id="st">パネルからの情報を待っています…</pre>
+<div id="ft">
+  <label><input type="checkbox" id="auto"> 書き出し・アワード・レガシーを自動で行う</label>
+  <button id="ex" disabled>今すぐ書き出す</button><button id="rs">リセット</button>
+</div>
+<script src="js/info.js"></script>
+</body>
+</html>

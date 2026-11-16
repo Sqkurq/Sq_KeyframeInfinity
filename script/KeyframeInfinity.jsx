@@ -47,7 +47,7 @@
       frames: 0, runTotal: 0, allTotal: 0, pops: 0, tr: {}, fx: {}, perks: {}, mast: {}, style: {}, cards: {},
       insp: 0, inspEarned: 0, inspAll: 0, exports: 0, trophies: 0, stars: 0, starsAll: 0,
       comp: 0, compMax: 0, bossLv: 0, bossWins: 0, misDone: 0, misRun: 0, misPops: 0, bossSec: 0, runActive: 0,
-      flow: 0, work: 0, playSec: 0, lastSave: 0, auto: true
+      flow: 0, work: 0, playSec: 0, idleSec: 0, lastSave: 0, auto: true
     };
   }
   var S = fresh(), G = 1, rate = 0, lastEvt = '起動', dirtyUI = true;
@@ -172,13 +172,17 @@
   }
 
   // 1ステップ進める。dt = 経過秒、wu = その間に検知した作業量
+  // AE で作業していない間は何も進めない(F・フロー・自動購入・転生すべて止まる)。作業 1 回ごとにまとめて進める。
   function step(dt, wu) {
-    var sp = speedMul(), act = wu * 2.5 * sp, c = S.comp, r, n;
+    var sp = speedMul(), act = wu * 2.5 * sp, c = S.comp, r, n, f0 = S.runTotal;
     S.playSec += dt;
-    if (wu > 0) {
+    if (!(wu > 0)) { S.idleSec += dt; return; }
+    S.flow = Math.max(0, S.flow - (1.2 + 0.02 * S.flow) * (1 - 0.06 * lv('flow')) * Math.min(dt + S.idleSec, 120)); // 手を止めていた分のフロー減衰は、作業を再開した時にまとめて
+    S.idleSec = 0;
+    {
       S.work += wu; S.runActive += act; S.bossSec += act;
       S.flow = Math.min(100, S.flow + wu * 9);
-      r = activeRate(c); earn(r * act);
+      r = activeRate(c) + idleRate(c); earn(r * act);                      // アシスタントとオートプレイヘッドも作業 1 回ぶんだけ働く
       n = actPops * act; S.pops += n; S.misPops += n;
       n = 100 * pw(1.15, S.misRun) * (1 - 0.05 * pk('mis'));          // クライアントの要望(達成でプリセット)
       if (S.misPops >= n) { S.misPops = 0; S.misRun++; S.misDone++; giveCard(1 + (Math.random() < 0.15 * pk('pick') ? 1 : 0)); }
@@ -188,14 +192,12 @@
         if (activeDps() * (20 + lv('boss')) >= hpAt(c) * 30 * pw(1.3, S.bossLv)) { earn(valAt(c) * 25 * pw(1.08, S.bossLv) * (1 + 0.3 * lv('boss')) * (1 + 0.5 * cd('boss')) * flowMul()); S.bossLv++; S.bossWins++; giveCard(1); lastEvt = '案件を納品 Lv' + S.bossLv; }
       }
     }
-    earn(idleRate(c) * dt * sp);                                         // アシスタントとオートプレイヘッドは作業していなくても働く
-    S.flow = Math.max(0, S.flow - (1.2 + 0.02 * S.flow) * (1 - 0.06 * lv('flow')) * dt);
+    rate = S.runTotal - f0;                                              // 直近の作業 1 回で得た F
     autoBuy();
     if (S.auto) autoPrestige();
-    rate = (wu > 0 ? activeRate(S.comp) : 0) + idleRate(S.comp);
     dirtyUI = true;
   }
-  function offline(sec) { if (sec > 60) earn(idleRate(S.comp) * Math.min(sec, 8 * 3600) * 0.5 * speedMul()); }
+  function offline(sec) { } // AE を閉じていた間は進めない(互換のため関数だけ残す)
 
   /* ───────── セーブ(ユーザーデータフォルダに小さなテキスト1つ) ───────── */
   function ser(o) {
@@ -226,7 +228,16 @@
   }
 
   /* ───────── AE の作業検知 ───────── */
-  var fp = { init: false, items: 0, dirty: false, done: 0, comp: -1, layers: 0, time: -1, lyr: -1, nsel: 0, fx: 0, sig: 0, nprop: 0, keys: 0, dur: 0 };
+  // 作業時間: 作業を検知した間隔が 90 秒以内ならその間を作業中として足す(離れていた時間は数えない)。
+  // AE の ExtendScript 全体で共有する $.global に置くので、パネルを開き直しても続き、AE を再起動すると 0 から。
+  function workSec(wu) {
+    var g = $.global, t = new Date().getTime();
+    if (typeof g.KFI_wsec !== 'number') { g.KFI_wsec = 0; g.KFI_wlast = 0; }
+    if (wu > 0) { g.KFI_wsec += (g.KFI_wlast && t - g.KFI_wlast <= 90000) ? (t - g.KFI_wlast) / 1000 : 2; g.KFI_wlast = t; }
+    return Math.floor(g.KFI_wsec);
+  }
+
+  var fp = { init: false, items: 0, dirty: false, done: 0, comp: -1, layers: 0, time: -1, lyr: -1, nsel: 0, fx: 0, sig: 0, nprop: 0, keys: 0, dur: 0, tmv: 0 };
   function probe() {
     var wu = 0, p = app.project, n, d, c, sl, L, v, k, sp, kk, tg, rq;
     if (!p) return 0;
@@ -240,7 +251,7 @@
     if (c && (c instanceof CompItem)) {
       if (c.id !== fp.comp) { if (fp.init && fp.comp !== -1) { wu += 1; lastEvt = 'コンポを切り替え'; } fp.comp = c.id; fp.layers = c.numLayers; fp.time = c.time; fp.dur = c.duration; fp.lyr = -1; }
       n = c.numLayers; if (n > fp.layers) { wu += Math.min(6, n - fp.layers) * 4; lastEvt = 'レイヤーを追加'; } else if (n < fp.layers) { wu += 1; lastEvt = 'レイヤーを整理'; } fp.layers = n;
-      if (c.time !== fp.time) { wu += 0.4; fp.time = c.time; if (wu < 1) lastEvt = '時間を移動'; }
+      if (c.time !== fp.time) { fp.tmv++; if (fp.tmv <= 3) { wu += 0.4; if (wu < 1) lastEvt = '時間を移動'; } fp.time = c.time; } else fp.tmv = 0; // プレビュー再生しっぱなしは作業に数えない
       if (c.duration !== fp.dur) { wu += 1; fp.dur = c.duration; lastEvt = 'コンポ設定を変更'; }
       sl = c.selectedLayers; n = sl.length;
       if (n !== fp.nsel) { wu += 0.3; fp.nsel = n; }
@@ -273,11 +284,12 @@
   }
 
   /* ───────── パネル(3行だけ) ───────── */
-  var ui = null, taskId = 0, lastTick = 0, idleN = 0, saveN = 0, cache = ['', '', -1];
+  var ui = null, taskId = 0, lastTick = 0, idleN = 0, saveN = 0, cache = ['', '', -1], wsec = 0;
+  function hm(s) { var m = Math.floor(s / 60); return Math.floor(m / 60) + ':' + (m % 60 < 10 ? '0' : '') + (m % 60); }
   function setText(el, i, s) { if (cache[i] !== s) { cache[i] = s; el.text = s; } }
   function refresh() {
     if (!ui || !dirtyUI) return; dirtyUI = false;
-    setText(ui.tF, 0, fmt(Math.floor(S.frames)) + ' F   +' + fmt(rate) + '/秒' + (flowTier() ? '  フロー×' + flowMul() : ''));
+    setText(ui.tF, 0, fmt(Math.floor(S.frames)) + ' F   +' + fmt(rate) + '   作業 ' + hm(wsec) + (flowTier() ? '  フロー×' + flowMul() : ''));
     setText(ui.tS, 1, 'コンポ' + (S.comp + 1) + '/' + (S.compMax + 1) + ' ・ 着想' + fmt(S.insp) + (S.trophies ? ' ・ 賞' + S.trophies : '') + (S.starsAll ? ' ・ ★' + S.starsAll : '') + ' ・ ' + lastEvt);
     var g = inspGain(), m = inspMult(), lo = pw(g / m, 4) * 2e5, hi = pw((g + 1) / m, 4) * 2e5, v = Math.floor(Math.max(0, Math.min(1, (S.runTotal - lo) / (hi - lo))) * 100);
     if (cache[2] !== v) { cache[2] = v; ui.bar.value = v; }
@@ -286,10 +298,10 @@
     try {
       if (!ui || !ui.root) { stop(); return; }
       var t = now(), dt = (t - lastTick) / 1000, wu = 0; lastTick = t;
-      if (dt > 30) { offline(dt); dt = 2; }                     // AE が止まっていた/裏に回っていた時間は放置扱い
+      if (dt > 30) dt = 2;                                         // 止まっていた時間は進めない
       if (idleN < 60 || (idleN % 3) === 0) wu = probe();          // 2分ほど何もなければ、検知の頻度を1/3に落とす
       if (wu > 0) idleN = 0; else idleN++;
-      step(dt, wu);
+      step(dt, wu); wsec = workSec(wu);
       var chk = ui.tF.text;                                       // パネルが閉じられていたらここで例外になり、タイマーを止める
       refresh();
       if (++saveN >= 45) { saveN = 0; save(); }                  // 約90秒ごとに保存
@@ -304,7 +316,7 @@
       + '着想(✺): ' + fmt(S.insp) + '(累計 ' + fmt(S.inspEarned) + ')・ 次の書き出しで +' + fmt(g) + '\n'
       + 'トロフィー: ' + S.trophies + ' ・ ★: ' + S.stars + '(累計 ' + S.starsAll + ')・ 書き出し ' + S.exports + ' 回\n'
       + '完成させた図形: ' + fmt(S.pops) + ' ・ 納品した案件: ' + S.bossWins + ' ・ 要望: ' + S.misDone + '\n'
-      + '検知した作業量: ' + fmt(S.work) + ' ・ 起動時間: ' + Math.floor(S.playSec / 3600) + '時間' + Math.floor(S.playSec % 3600 / 60) + '分\n'
+      + '検知した作業量: ' + fmt(S.work) + '\n'
       + '価値倍率: ×' + fmt(G) + ' ・ ゲーム速度: ×' + speedMul().toFixed(1);
   }
   function details() {

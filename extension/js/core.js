@@ -43,7 +43,7 @@ var KFI = (function () {
       frames: 0, runTotal: 0, allTotal: 0, pops: 0, tr: {}, fx: {}, perks: {}, mast: {}, style: {}, cards: {},
       insp: 0, inspEarned: 0, inspAll: 0, exports: 0, trophies: 0, stars: 0, starsAll: 0,
       comp: 0, compMax: 0, bossLv: 0, bossWins: 0, misDone: 0, misRun: 0, misPops: 0, bossSec: 0, runActive: 0,
-      flow: 0, work: 0, playSec: 0, lastSave: 0, auto: true
+      flow: 0, work: 0, playSec: 0, idleSec: 0, lastSave: 0, auto: true
     };
   }
   var S = fresh(), G = 1, rate = 0, lastEvt = '起動', dirtyUI = true;
@@ -168,13 +168,17 @@ var KFI = (function () {
   }
 
   // 1ステップ進める。dt = 経過秒、wu = その間に検知した作業量
+  // AE で作業していない間は何も進めない(F・フロー・自動購入・転生すべて止まる)。作業 1 回ごとにまとめて進める。
   function step(dt, wu) {
-    var sp = speedMul(), act = wu * 2.5 * sp, c = S.comp, r, n;
+    var sp = speedMul(), act = wu * 2.5 * sp, c = S.comp, r, n, f0 = S.runTotal;
     S.playSec += dt;
-    if (wu > 0) {
+    if (!(wu > 0)) { S.idleSec += dt; return; }
+    S.flow = Math.max(0, S.flow - (1.2 + 0.02 * S.flow) * (1 - 0.06 * lv('flow')) * Math.min(dt + S.idleSec, 120)); // 手を止めていた分のフロー減衰は、作業を再開した時にまとめて
+    S.idleSec = 0;
+    {
       S.work += wu; S.runActive += act; S.bossSec += act;
       S.flow = Math.min(100, S.flow + wu * 9);
-      r = activeRate(c); earn(r * act);
+      r = activeRate(c) + idleRate(c); earn(r * act);                      // アシスタントとオートプレイヘッドも作業 1 回ぶんだけ働く
       n = actPops * act; S.pops += n; S.misPops += n;
       n = 100 * pw(1.15, S.misRun) * (1 - 0.05 * pk('mis'));          // クライアントの要望(達成でプリセット)
       if (S.misPops >= n) { S.misPops = 0; S.misRun++; S.misDone++; giveCard(1 + (Math.random() < 0.15 * pk('pick') ? 1 : 0)); }
@@ -184,14 +188,12 @@ var KFI = (function () {
         if (activeDps() * (20 + lv('boss')) >= hpAt(c) * 30 * pw(1.3, S.bossLv)) { earn(valAt(c) * 25 * pw(1.08, S.bossLv) * (1 + 0.3 * lv('boss')) * (1 + 0.5 * cd('boss')) * flowMul()); S.bossLv++; S.bossWins++; giveCard(1); lastEvt = '案件を納品 Lv' + S.bossLv; }
       }
     }
-    earn(idleRate(c) * dt * sp);                                         // アシスタントとオートプレイヘッドは作業していなくても働く
-    S.flow = Math.max(0, S.flow - (1.2 + 0.02 * S.flow) * (1 - 0.06 * lv('flow')) * dt);
+    rate = S.runTotal - f0;                                              // 直近の作業 1 回で得た F
     autoBuy();
     if (S.auto) autoPrestige();
-    rate = (wu > 0 ? activeRate(S.comp) : 0) + idleRate(S.comp);
     dirtyUI = true;
   }
-  function offline(sec) { if (sec > 60) earn(idleRate(S.comp) * Math.min(sec, 8 * 3600) * 0.5 * speedMul()); }
+  function offline(sec) { } // AE を閉じていた間は進めない(互換のため関数だけ残す)
 
   function statsText() {
     var g = inspGain();
@@ -201,7 +203,7 @@ var KFI = (function () {
       + '着想(✺): ' + fmt(S.insp) + '(累計 ' + fmt(S.inspEarned) + ')・ 次の書き出しで +' + fmt(g) + '\n'
       + 'トロフィー: ' + S.trophies + ' ・ ★: ' + S.stars + '(累計 ' + S.starsAll + ')・ 書き出し ' + S.exports + ' 回\n'
       + '完成させた図形: ' + fmt(S.pops) + ' ・ 納品した案件: ' + S.bossWins + ' ・ 要望: ' + S.misDone + '\n'
-      + '検知した作業量: ' + fmt(S.work) + ' ・ 起動時間: ' + Math.floor(S.playSec / 3600) + '時間' + Math.floor(S.playSec % 3600 / 60) + '分\n'
+      + '検知した作業量: ' + fmt(S.work) + '\n'
       + '価値倍率: ×' + fmt(G) + ' ・ ゲーム速度: ×' + speedMul().toFixed(1);
   }
   return {
